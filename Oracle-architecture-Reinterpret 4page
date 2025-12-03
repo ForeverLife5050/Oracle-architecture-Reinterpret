@@ -1,0 +1,51 @@
+## Process Architecture: Foreground vs. Background
+
+### 1. The Strong Distinction
+When looking at the Database Instance overview, there is a very strong conceptual boundary between the **"Foreground"** and the **"Background"**.
+
+* **Foreground (User-Facing):** Responsible for receiving and handling user requests directly.
+* **Background (System-Facing):** Never interacts with the user. Ever.
+
+### 2. Handling the Request (The Foreground)
+When a user sends a SQL request:
+1.  **The Server Process:** This is the "Receptionist." It is the first to accept the user's request.
+2.  **The PGA (Program Global Area):** All specific requests and private data handling for that connection are processed within the PGA.
+
+**A Thought Experiment: Cloud vs. Local PGA?**
+One might wonder: If I use a Cloud Database, is the PGA in the cloud while I am local?
+* **The Rule:** The PGA is strictly tied to the Instance.
+* **Location:** **Where the Instance runs, the PGA runs.**
+* Whether the server is a local machine (On-Premise) or a Cloud Server, the PGA is always in the memory of that specific machine processing the task.
+
+### 3. The Background Processes
+As shown in the diagram, the "Background" seems to completely ignore the user.
+**Question:** Is there really no interaction between the User and the Background Processes?
+**Answer:** **Zero Interaction.**
+
+The User communicates *only* with the Server Process (Foreground). The Background Processes work quietly behind the scenes (e.g., writing data to disk, cleaning up logs).
+
+**The Final Goal:**
+If all goes well and the system operates normally, the data processed in the volatile Instance will be successfully **persisted** (saved) into the permanent Database files.
+
+
+
+这里我们有着数据库实例的概括图。
+当我们用户发送SQL请求，我们发送给数据库实例中，这里数据库实例有着很强的“前台”和“后台”意识。
+
+对于前台，我们接待用户的请求，而对于后台，我们永远无法和用户有过交集。
+
+我们首先是Server Process来接待用户的请求，所有的要求都被通过的PGAs。
+
+这里不妨我们很容易突发奇想一点：PGA的云端和本地
+但答案是实例在哪台机器里，PGA就在哪里跑。不论本地还是云端。
+
+我们看到图中“后台”，从不理用户，所以用户和后台没有交集吗？
+答案是，完全没有交集！
+
+如果一切安好，那么所有实例中的数据都会被保存在数据库中。
+
+
+
+
+
+
