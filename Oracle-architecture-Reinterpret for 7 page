@@ -1,0 +1,85 @@
+## PGA (Program Global Area): The Private Workspace
+
+### 1. Definition & Lifecycle
+The PGA is a **Non-Shared** memory region.
+* **Usage:** It contains data and control information exclusively for a specific Server or Background process.
+* **Composition:** It consists of Stack Space, Hash Area, Bitmap Merge Area, and the User Global Area (UGA).
+* **Lifecycle:** Born when the process starts, dies when the process terminates.
+
+---
+
+### 2. Dedicated vs. Shared Server Environments
+
+#### The Dedicated Server (Standard Mode)
+* **Concept:** **One-to-One.**
+* **Analogy:** Like a **Private Butler**. This server process serves *only you* for the entire duration of your session.
+* **UGA Location:** Inside the **PGA**. Since the butler is yours alone, he keeps your "luggage" (session state) in his pockets (PGA).
+
+#### The Shared Server (The Illusion)
+* **Concept:** **Many-to-One.** Multiple clients share a pool of server processes.
+* **Clarification:** Do not misunderstand "Shared." It doesn't mean users are squeezed together in a crowded room.
+* **The Reality:** It works like a **Bank Teller** system.
+    * You don't own the teller. You wait in line, the next available teller processes your request, and then that teller moves on to serve someone else.
+* **UGA Location:** **Moved to the SGA (Large Pool).**
+    * *Why?* Because the Server Process is no longer yours. It serves the masses. It cannot hold your private state. Therefore, your "luggage" (UGA) must be stored in a public locker (SGA/Large Pool) where any available server process can pick it up when it's your turn.
+
+---
+
+### 3. The Bitmap Merge Area: Oracle's Brutal Efficiency
+This is a unique, simple, and powerful Oracle technique.
+* **Mechanism:** Using **0s and 1s** to represent Yes/No (Low Cardinality data).
+* **Example:** A "Gender" column.
+    * `10010` translates to `Male, Female, Female, Male, Female`.
+* **The Power:** Oracle performs **Bitwise Operations** (AND, OR, NOT) in this memory area.
+* **Speed:** CPU processing of binary bitwise math is incredibly fast compared to standard comparisons.
+
+---
+
+### 4. Private SQL Area: The Secret to Efficiency
+
+The text mentions a lot of details here, but the core reason this exists is to save memory via a technique called **"Bind Variables"**.
+
+**The Architecture of a SQL Statement:**
+1.  **Shared SQL Area (Public):**
+    * Stores the **Structure/Code** (The Blueprint).
+    * *Example:* `SELECT * FROM users WHERE id = :x`
+    * This is shared by thousands of users.
+2.  **Private SQL Area (Private):**
+    * Stores the **Specific Values** (The Data).
+    * *Example:* `x = 1001` for User A; `x = 5002` for User B.
+    * It also tracks the query execution state (e.g., "I have fetched row 50, waiting for row 51").
+
+**Conclusion:** By splitting SQL into "Shared Code" and "Private Data," Oracle avoids recompiling the same query for every single user.
+
+
+
+这里则是到了PGA的描述，文中提到了，它是一个非共享内存区域
+其中包含专门服务器和后台进程使用的数据和控制信息。
+在专用服务器环境中，每个启动的服务器和后台进程都会创建一个 PGA。每个 PGA 由栈空间、哈希区、位图合并区和用户全局区 (UGA) 组成。当使用该 PGA 的关联服务器或后台进程终止时，PGA 将被释放。
+
+在共享服务器环境中，多个客户端用户共享一个服务器进程。
+这里我们该如何理解，这个共享服务器，多个用户共享一个服务器进程，这里有一个很大的错觉。
+这个共享并不是说挤成一块，而是指我们大家共享这个区域，并且会有专门的服务来服务用户。
+
+这里的专用和共享就体现出来了，就好比一个服务只服务一个人和服务群众。
+
+UGA 会被移入大池也是紧凑连接共享和专用，专用模式下，一个服务只服务一个用户，所以只把“状态”记在PGA就可以。
+共享模式下，用户很多，必须用放在公共SGA里来记述要求，
+
+这里来到了Oracle的独创技术，简单暴力。用 0 和 1 来表示“是/否”。比如性别列：10010 代表 男男女男女。
+Oracle 就在这个区域里做二进制运算（与、或、非），速度极快。
+
+
+会话内存也没什么可以说的，也是一个统计信息。
+
+这个私有SQL区域，乌拉乌拉说一堆，只在说明为什么可以省内存，这里有个专用词叫“绑定变量”
+
+Shared SQL Area (公共区)，存的是大部分，并且大量用户共用。
+Private SQL Area (私有区)，则是具体要求。
+
+
+
+
+
+
+
