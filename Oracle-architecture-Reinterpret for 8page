@@ -1,0 +1,73 @@
+## Background Processes: The "Vital Signs" of the Instance
+
+### 1. Mandatory Background Processes
+How should we understand "Mandatory"?
+* **Definition:** In Oracle, Mandatory = **Vital Signs**.
+* **Consequence:** If any one of these processes dies, the entire Instance crashes immediately. The database cannot survive without them.
+
+Although there are many processes, they can be boiled down to **Three Core Functions**:
+
+#### A. The Writers (Core Persistence)
+* **DBWn (Database Writer):** Writes dirty blocks from memory to data files.
+* **LGWR (Log Writer):** Writes log entries from memory to Redo Log files.
+* *Note:* These are the heavy lifters responsible for actually saving data to the disk.
+
+#### B. The Janitors (Supervision & Cleanup)
+* **PMON (Process Monitor):** Cleans up after failed *User Processes* (e.g., if a user's connection drops, PMON releases their locks).
+* **SMON (System Monitor):** Cleans up after a failed *Instance* (System Crash Recovery). It performs the "roll forward" and "roll back" during startup.
+
+#### C. The Heartbeat (Synchronization)
+* **CKPT (Checkpoint):**
+* It acts as the system's heartbeat.
+* It doesn't write data blocks itself; it signals DBWn to write and updates the **Data File Headers** and **Control Files** to say: "We are synced up to this point."
+
+
+
+---
+
+### 2. Optional Background Processes
+These are not required for the instance to start, but they enable critical advanced features.
+
+#### ARCn (Archiver Process)
+* **Role:** The "Insurance Policy."
+* **Function:** It copies full Redo Log files to a secondary location (like a separate disk or **Tape**).
+* **Purpose:** Essential for point-in-time recovery and preventing data loss if the primary disk fails.
+
+#### RVWR (Recovery Writer)
+* **Role:** The "Time Traveler's Scribe."
+* **Matching Component:** Works hand-in-hand with the **Flashback Buffer**.
+* **Function:** It is responsible for flushing the "Undo" data from the Flashback Buffer to the Flashback Logs on disk.
+
+#### CJQ0 (Job Queue Coordinator)
+* **Role:** The "Scheduler / Automation Service."
+* **Function:** Runs scheduled tasks (e.g., "Run a backup script every day at 12:00 AM"). It wakes up slave processes to execute these jobs.
+
+---
+
+### 3. Slave Processes
+* **Nature:** Transient / Disposable.
+* **Behavior:** They are spawned by a coordinator to perform a specific task (like parallel query execution or I/O). Once the task is finished, they **vanish**.
+
+
+
+这里我们来到了后台，这里它说的强制性后台进程，这个强制性该如何理解？
+在Oracle中强制 = 维持生命体征
+
+
+这个强制性后台看起来这么多功能，但实际上说的就三个功能
+写盘：DBWn和LGWR，这里属于核心功能
+
+监管与打扫：PMON和SMON
+
+同步与心跳：CKPT
+
+
+这里还有可选后台进程，这些主要用于什么
+ARCn：主要用于多一份保障，比如把文件再存一份到磁带
+RVWR：这个与Flashback Buffer配套，主要负责把Flashback Buffer里的数据写到硬盘上。
+
+CJQ0：有点像自动服务，比如你再凌晨12点自动备份。
+
+这个从属进程是Slave，处理完就消失。
+
+
