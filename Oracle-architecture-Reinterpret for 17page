@@ -1,0 +1,132 @@
+# Oracle Multitenant Architecture: CDB & PDB
+
+> **Note:** Transitioning from the Instance (Memory/Processes) to the physical Database structure. A comparison between the legacy Non-CDB architecture and the modern Multitenant architecture.
+
+---
+
+## 1. The Era of Consolidation: CDB vs. Non-CDB
+
+The documentation might list these as bullet points, but they represent a paradigm shift in database history.
+
+* **Non-CDB (The Legacy Era):**
+    * **Architecture:** Single-Tenant. One database instance requires one set of background processes and one dedicated SGA.
+    * **Overhead:** Even for a tiny application, you must provision a full server, install the software, and maintain a dedicated OS and memory structure. It's high maintenance and resource-heavy.
+* **CDB (The Modern Era):**
+    * **Architecture:** Multitenant Container Database.
+    * **Goal:** **Consolidation**. To save money (hardware costs) and simplify management (patch one CDB, patch all PDBs). It acts as a shared public infrastructure.
+
+---
+
+## 2. Core Components of the Multitenant Architecture
+
+[Image of Oracle Multitenant Architecture CDB PDB structure]
+
+The structure consists of the `CDB$ROOT`, `PDB$SEED`, PDBs, and optional Application Containers.
+
+### A. CDB Root (`CDB$ROOT`)
+The absolute core. It stores global metadata and common users required to manage the entire container.
+
+### B. Seed PDB (`PDB$SEED`)
+* **Concept:** A system-supplied **Read-Only Template**.
+* **Function:** When you want to create a new PDB, the system clones this seed. It ensures rapid provisioning (fast creation) of new databases.
+
+### C. PDB (Pluggable Database)
+* **The Analogy:** Think of a **USB Drive**.
+* **The Concept:** Portability.
+    * A PDB is a self-contained set of data and metadata that can be **Unplugged** from one CDB (Server A) and **Plugged** into another CDB (Server B) instantly.
+    * This is the prototype of modern **Cloud Services** (Database as a Service). The CDB is the host server, and the PDB is your portable business unit.
+
+---
+
+## 3. Logical Independence vs. Physical Sharing
+
+The entire structure is called the **System Container**.
+The distinction between the "User View" and the "Admin View" is critical.
+
+* **The Programmer's View (Logical):**
+    * When connecting to a PDB, it feels exactly like a traditional legacy database. You believe you own the entire server.
+* **The Admin's View (Physical):**
+    * **Resource Sharing:** In reality, all PDBs share the **Same SGA** (Memory) and the **Same Background Processes** (PMON/SMON).
+
+### The "Noisy Neighbor" Problem
+Since resources are shared, isolation is a challenge.
+* **Scenario:** If a user in `PDB1` writes an infinite loop and consumes 100% of the CPU, the entire building (CDB) lags, causing `PDB2` (a different company) to slow down.
+* **Solution:** Oracle **Resource Manager (DBRM)**.
+* **Mechanism:** It enforces limits (e.g., "PDB1 can only use max 30% CPU"). This guarantees Quality of Service (QoS) for all tenants.
+
+---
+
+## 4. File Structure Isolation
+
+How do we share the container without mixing the data? The diagram reveals the separation of duties via Tablespaces.
+
+### SYSTEM / SYSAUX (Data Dictionary)
+* **In Root:** Contains global system metadata (Global View).
+* **In PDB:** Contains local system metadata (Local View).
+    * *Why?* This allows the PDB to be "Self-Contained." When you unplug a PDB, it carries its own local data dictionary (its own identity) with it.
+
+### TEMP (Temporary Tablespace)
+* **In Root:** A global temporary space exists.
+* **In PDB:** PDBs can have their own local TEMP files for better isolation.
+
+### USERS (Business Data)
+* **Location:** **Strictly inside the PDB.** The Root does *not* store user data.
+* **Implication:** **Physical Isolation.** The HR department's data files are inside the HR PDB. The Sales department's data files are inside the Sales PDB. They physically do not touch each other ("Well water does not intrude into river water").
+
+
+
+我们的数据库实例算是告一段落了，现在来到数据库中。
+但实际上，这一页真的就像是流水账一样。
+
+先看多租户容器数据库 (CDB) 或非容器数据库 (非 CDB)。
+这其实就像是两种生态一样，新时代和旧时代。
+Non-CDB：旧时代你要建一个数据库，就得买一台服务器，装一套软件，起一套内存和进程。
+哪怕只有你一个人（业务量小），你也得去自己维护。
+
+CDB：新时代，就像是一套公共系统，好维护，好管理。
+
+所以说Oracle发明CBD就是为了省钱和方便管理。
+
+
+这里还提到了CBD Root，Seed PDB，PDB，Application Container（可选）
+CBD Root是绝对核心，这里存着全部通用和元数据。
+Seed PDB：它就像一个种子一样，给你提供一个只读模板。
+PBD：请看他的名字“可插拔数据库”！我想的是你的脑袋里应该有一个画面：一个人，它在每一个大的服务器都可以随时拆出来或者插上去无数个PDB。
+这就是现代云服务的雏形，你可以想象CBD就是一个大的服务器，PBD就是你的业务数据库随时可以像“一个大的U盘”一样去插上服务器。
+
+
+
+整个 CDB 被称为系统容器。对于用户或应用程序而言，PDB 在逻辑上表现为独立的数据库。
+就如同文字说的那么简单吗，这对于使用者和管理者是很大的概念。
+对程序员来说你连接 PDB 时，感觉跟连传统的旧式数据库一模一样。你以为你独占了整个服务器。
+对管理员来说物理上不独立： 其实你们共用着同一个 SGA（内存池）和同一组 PMON/SMON（后台进程）。
+
+这叫“资源隔离”： 假如 PDB1 的用户搞了个死循环，疯狂吃 CPU，有可能会把整个大楼（CDB）搞卡，导致 PDB2 也变慢。
+
+所以 Oracle 有专门的 Resource Manager 来控制：限制 PDB1 最多只能用 30% 的 CPU。
+
+
+
+下面的这些，像是在念题纲一样，但其实就讲了一件事。大家共用一个CDB，是怎么不互相干扰的。
+我们看图中的小方块：
+
+SYSTEM / SYSAUX (系统文件)：
+
+Root 有一份： 存公用的系统信息。
+
+每个 PDB 也各有一份： 存自己房间里的私有系统信息。
+
+这就是为什么 PDB 可以拔下来插到别的服务器上，因为自带了系统盘。
+
+TEMP (临时文件)：
+
+Root 有一个大的。
+
+PDB 也可以有自己的。
+
+USERS (用户数据文件 - 关键！)：
+
+只有 PDB 有！ Root 没有。
+
+这说明：业务数据是严格物理隔离的。 HR 的数据文件都在 HR 的 PDB 文件夹里，跟销售的 PDB 井水不犯河水。
+
